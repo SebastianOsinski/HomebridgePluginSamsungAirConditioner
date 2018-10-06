@@ -1,29 +1,36 @@
+var AirConditionerApi = require('./air-conditioner-api');
+
 var Service, Characteristic;
 
 module.exports = function(homebridge) {
     Service = homebridge.hap.Service;
     Characteristic = homebridge.hap.Characteristic;
-    homebridge.registerAccessory("homebridge-samsung-air-conditioner", "Samsung Air Conditioner", AirConditioner);
+    homebridge.registerAccessory("homebridge-samsung-air-conditioner", "Samsung AirConditioner", AirConditioner);
 };
 
 function AirConditioner(log, config) {
-    this.log=log;
-    this.name= config["name"];
-    // this.ip=config["ip"];
-    // this.token=config["token"];
-    // this.patchCert=config["patchCert"];
-    // this.accessoryName=config["name"];
-    this.setOn = true;
-    this.setOff= false;
+    this.log = log;
+    this.name = config["name"];
+    this.api = new AirConditionerApi(config["ip_address"], config["mac"], config["token"], log);
 
     this._isActive = Characteristic.Active.INACTIVE;
-    this._targetTemperature = 20;
+    this._targetTemperature = 15;
     this._targetState = Characteristic.TargetHeaterCoolerState.COOL; // or HEAT or AUTO
 }
 
 AirConditioner.prototype = {
 
     getServices: function() {
+        this.log('Connecting...');
+
+        this.api.on('error', function(error) {
+            this.log(error)
+        });
+
+        this.api.connect(function() {
+            this.log('Connected');
+        }.bind(this));
+
         this.acService = new Service.HeaterCooler(this.name);
 
         // ACTIVE STATE
@@ -75,9 +82,13 @@ AirConditioner.prototype = {
 
     setActive: function(isActive, callback) {
         this.log('SET ACTIVE: ' + isActive);
-        this._isActive = isActive;
+        //this._isActive = isActive;
 
-        callback();
+        this.api.onoff(isActive, function(err, line) {
+            this.log('didsetactive');
+            callback();
+        }.bind(this));
+        //callback();
     },
 
     // CURRENT TEMPERATURE

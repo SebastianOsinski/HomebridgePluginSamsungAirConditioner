@@ -14,5 +14,8 @@
     "homebridge": ">=0.1"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "carrier": "^0.3.0"
+  }
 }
