@@ -1,4 +1,5 @@
-var AirConditionerApi = require('./air-conditioner-api');
+var AirConditionerApi = require('./air-conditioner-api').AirConditionerApi;
+var ACFun = require('./air-conditioner-api').ACFun
 
 var Service, Characteristic;
 
@@ -13,7 +14,6 @@ function AirConditioner(log, config) {
     this.name = config["name"];
     this.api = new AirConditionerApi(config["ip_address"], config["mac"], config["token"], log);
 
-    this._isActive = Characteristic.Active.INACTIVE;
     this._targetTemperature = 15;
     this._targetState = Characteristic.TargetHeaterCoolerState.COOL; // or HEAT or AUTO
 }
@@ -23,13 +23,12 @@ AirConditioner.prototype = {
     getServices: function() {
         this.log('Connecting...');
 
-        this.api.on('error', function(error) {
-            this.log(error)
-        });
+        this.api
+            .on('error', this.log)
+            .on('authSuccess', function() { this.log("Connected") }.bind(this))
+            .on('statusChange', this.statusChanged.bind(this));
 
-        this.api.connect(function() {
-            this.log('Connected');
-        }.bind(this));
+        this.api.connect();
 
         this.acService = new Service.HeaterCooler(this.name);
 
@@ -51,7 +50,7 @@ AirConditioner.prototype = {
 
         // TARGET TEMPERATURE
         this.acService
-            .getCharacteristic(Characteristic.HeatingThresholdTemperature)
+            .getCharacteristic(Characteristic.CoolingThresholdTemperature)
             .setProps({
                 minValue: 16,
                 maxValue: 30,
@@ -76,25 +75,32 @@ AirConditioner.prototype = {
 
     // ACTIVE STATE
     getActive: function(callback) {
-        this.log('GET ACTIVE: ' + this._isActive);
-        callback(null, this._isActive); // REPORT ACTIVE STATE
+        this.log('Getting active...');
+
+        this.api.deviceState(ACFun.Power, function(err, power) {
+            var isActive = power === 'On';
+            this.log('Is active: ' + isActive);
+            callback(null, isActive);
+        }.bind(this));
     },
 
     setActive: function(isActive, callback) {
-        this.log('SET ACTIVE: ' + isActive);
-        //this._isActive = isActive;
+        this.log('Setting active: ' + isActive);
 
-        this.api.onoff(isActive, function(err, line) {
-            this.log('didsetactive');
+        this.api.deviceControl(ACFun.Power, isActive ? "On" : "Off", function(err, line) {
+            this.log('Active set')
             callback();
         }.bind(this));
-        //callback();
     },
 
     // CURRENT TEMPERATURE
     getCurrentTemperature: function(callback) {
-        this.log('GET CURRENT TEMPERATURE');
-        callback(null, 20.0);
+        this.log('Getting current temperature...');
+        
+        this.api.deviceState(ACFun.TempNow, function(err, currentTemperature) {
+            this.log('Current temperature: ' + currentTemperature);
+            callback(null, currentTemperature);
+        }.bind(this));
     },
 
     // TARGET TEMPERATURE
@@ -126,5 +132,27 @@ AirConditioner.prototype = {
     getCurrentState: function(callback) {
         this.log('GET CURRENT STATE');
         callback(null, Characteristic.CurrentHeaterCoolerState.COOLING);
+    },
+
+    // STATUS CHANGE
+    statusChanged: function(status) {
+        this.log('Status change: ', status);
+
+        var characteristic;
+        switch(status.name) {
+        case ACFun.Power:
+            characteristic = Characteristic.Active;
+            break;
+        case ACFun.TempSet:
+            characteristic = Characteristic.CoolingThresholdTemperature;
+            break;
+        case ACFun.TempNow:
+            characteristic = Characteristic.CurrentTemperature;
+            break;
+        }
+
+        if(!!characteristic) {
+            this.acService.getCharacteristic(characteristic).updateValue(status.value)
+        }
     }
 };

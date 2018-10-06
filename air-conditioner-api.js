@@ -4,6 +4,7 @@ var tls = require('tls');
 var carrier = require('carrier');
 var fs = require('fs');
 var path = require('path');
+var shortid = require('shortid');
 
 const port = 2878;
 
@@ -16,17 +17,31 @@ function AirConditionerApi(ipAddress, mac, token, log) {
 
 util.inherits(AirConditionerApi, events.EventEmitter);
 
-AirConditionerApi.prototype.connect = function(loginSuccessCallback) {
+var ACFun = {
+    Power: 'AC_FUN_POWER',
+    TempNow: 'AC_FUN_TEMPNOW',
+    TempSet: 'AC_FUN_TEMPSET',
+    WindLevel: 'AC_FUN_WINDLEVEL'
+}
+
+AirConditionerApi.prototype.connect = function() {
     this.callbacks = {};
   
     var pfxPath = path.join(__dirname, 'ac14k_m.pfx')
 
-    this.socket = tls.connect({ pfx: fs.readFileSync(pfxPath), port: port, host: this.ipAddress, rejectUnauthorized: false }, function() {  
-      this.log('connected', { ipaddr: this.ipAddress, port: port, tls: true });
+    var options = {
+        pfx: fs.readFileSync(pfxPath), 
+        port: port, 
+        host: this.ipAddress,
+        rejectUnauthorized: false
+    };
+
+    this.socket = tls.connect(options, function() {  
+      this.log('Connected');
   
       this.socket.setEncoding('utf8');
       carrier.carry(this.socket, function(line) {
-        var callback, id, state;
+        var callback, id, status, callbackInput;
   
         if (line === 'DRC-1.00') {
           return;
@@ -37,48 +52,50 @@ AirConditionerApi.prototype.connect = function(loginSuccessCallback) {
         }
   
         if (line.match(/Response Type="AuthToken" Status="Okay"/)) {
-           this.emit('loginSuccess');
-
-            loginSuccessCallback()
+           this.emit('authSuccess');
         }
   
-        this.log('read', { line: line });
+        this.log('Read: ', line);
   
-        // Other events
         if (line.match(/Update Type="Status"/)) {
           if ((matches = line.match(/Attr ID="(.*)" Value="(.*)"/))) {
-            state = {};
-            state[matches[1]] = matches[2];
+            status = {};
+            status.name = matches[1];
+            status.value = matches[2];
+            callbackInput = status.value;
   
-            this.emit('stateChange', state);
+            this.emit('statusChange', status);
           }
         }
   
         if (line.match(/Response Type="DeviceState" Status="Okay"/)) {
-            state = {};
+            status = {};
   
             var attributes = line.split("><");
             attributes.forEach(function(attr) {
               if ((matches = attr.match(/Attr ID="(.*)" Type=".*" Value="(.*)"/))) {
-                state[matches[1]] = matches[2];
+                id = matches[1];
+                status.name = matches[1];
+                status.value = matches[2];
+                callbackInput = status.value;
               }
             });
   
-            this.emit('stateChange', state);
+            this.emit('statusChange', status);
         }
 
         if (line.match(/Response Type="DeviceControl" Status="Okay"/)) {
-            if ((matches = line.match(/CommandID="cmd(.*)"/))) {
+            if ((matches = line.match(/CommandID="(.*)"/))) {
                 id = matches[1];
+                callbackInput = null;
             }
         }
-  
-        this.log(id);
+
         if (!this.callbacks[id]) return;
         callback = this.callbacks[id];
         delete(this.callbacks[id]);
 
-        callback(null, line);
+        callback(null, callbackInput);
       }.bind(this));
     }.bind(this)).on('end', function() {
       this.emit('end');
@@ -87,29 +104,36 @@ AirConditionerApi.prototype.connect = function(loginSuccessCallback) {
     }.bind(this));
 };
 
-AirConditionerApi.prototype._device_control = function(key, value, callback) {
-    var id;
-  
+AirConditionerApi.prototype._send = function(line) {  
+    this.log('Write: ', line);
+    this.socket.write(line + "\r\n");
+};
+
+AirConditionerApi.prototype.deviceControl = function(key, value, callback) {
     if (!this.socket) throw new Error('not logged in');
   
-    id = Math.round(Math.random() * 10000);
+    var id = shortid.generate()
 
     if (!!callback) this.callbacks[id] = callback;
   
     this._send(
-      '<Request Type="DeviceControl"><Control CommandID="cmd' + id + '" DUID="' + this.mac + '"><Attr ID="' + key + '" Value="' + value + '" /></Control></Request>'
+      '<Request Type="DeviceControl"><Control CommandID="' + id + '" DUID="' + this.mac + '"><Attr ID="' + key + '" Value="' + value + '" /></Control></Request>'
+    );
+};
+
+AirConditionerApi.prototype.deviceState = function(key, callback) {
+    if (!this.socket) throw new Error('not logged in');
+  
+    var id = key
+
+    if (!!callback) this.callbacks[id] = callback;
+  
+    this._send(
+      '<Request Type="DeviceState"><DUID="' + this.mac + '"><Attr ID="' + key + '" /></Request>'
     );
 };
   
-AirConditionerApi.prototype._send = function(xml) {  
-    this.log('write', { line: xml });
-    this.socket.write(xml + "\r\n");
-  
-    return this;
-};
-
-AirConditionerApi.prototype.onoff = function(onoff, callback) {
-    this._device_control('AC_FUN_POWER', onoff ? 'On' : 'Off', callback);
-};
-  
-module.exports = AirConditionerApi;
+module.exports = {
+    AirConditionerApi: AirConditionerApi,
+    ACFun: ACFun
+}
