@@ -14,7 +14,6 @@ function AirConditioner(log, config) {
     this.name = config["name"];
     this.api = new AirConditionerApi(config["ip_address"], config["mac"], config["token"], log);
 
-    this._targetTemperature = 15;
     this._targetState = Characteristic.TargetHeaterCoolerState.COOL; // or HEAT or AUTO
 }
 
@@ -80,14 +79,14 @@ AirConditioner.prototype = {
         this.api.deviceState(ACFun.Power, function(err, power) {
             var isActive = power === 'On';
             this.log('Is active: ' + isActive);
-            callback(null, isActive);
+            callback(err, isActive);
         }.bind(this));
     },
 
     setActive: function(isActive, callback) {
         this.log('Setting active: ' + isActive);
 
-        this.api.deviceControl(ACFun.Power, isActive ? "On" : "Off", function(err, line) {
+        this.api.deviceControl(ACFun.Power, isActive ? "On" : "Off", function(err) {
             this.log('Active set')
             callback();
         }.bind(this));
@@ -99,21 +98,27 @@ AirConditioner.prototype = {
         
         this.api.deviceState(ACFun.TempNow, function(err, currentTemperature) {
             this.log('Current temperature: ' + currentTemperature);
-            callback(null, currentTemperature);
+            callback(err, currentTemperature);
         }.bind(this));
     },
 
     // TARGET TEMPERATURE
     getTargetTemperature: function(callback) {
-        this.log('GET TARGET TEMPERATURE: ' + this._targetTemperature);
-        callback(null, this._targetTemperature);
+        this.log('Getting target temperature...');
+
+        this.api.deviceState(ACFun.TempSet, function(err, targetTemperature) {
+            this.log('Target temperature: ' + targetTemperature);
+            callback(err, targetTemperature);
+        }.bind(this));
     },
 
     setTargetTemperature: function(temperature, callback) {
-        this.log('SET TARGET TEMPERATURE: ' + temperature);
-        this._targetTemperature = temperature;
-
-        callback();
+        this.log('Setting target temperature: ' + temperature);
+        
+        this.api.deviceControl(ACFun.TempSet, temperature, function(err) {
+            this.log('Active set')
+            callback(err);
+        }.bind(this));
     },
 
     // TARGET STATE
