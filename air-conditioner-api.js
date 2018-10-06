@@ -21,7 +21,16 @@ var ACFun = {
     Power: 'AC_FUN_POWER',
     TempNow: 'AC_FUN_TEMPNOW',
     TempSet: 'AC_FUN_TEMPSET',
+    OpMode: 'AC_FUN_OPMODE',
     WindLevel: 'AC_FUN_WINDLEVEL'
+}
+
+var OpMode = {
+    Cool: 'Cool',
+    Heat: 'Heat',
+    Wind: 'Wind',
+    Dry: 'Dry',
+    Auto: 'Auto'
 }
 
 AirConditionerApi.prototype.connect = function() {
@@ -135,5 +144,6 @@ AirConditionerApi.prototype.deviceState = function(key, callback) {
   
 module.exports = {
     AirConditionerApi: AirConditionerApi,
-    ACFun: ACFun
+    ACFun: ACFun,
+    OpMode: OpMode
 }

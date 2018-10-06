@@ -1,5 +1,7 @@
-var AirConditionerApi = require('./air-conditioner-api').AirConditionerApi;
-var ACFun = require('./air-conditioner-api').ACFun
+const api = require('./air-conditioner-api');
+const AirConditionerApi = api.AirConditionerApi;
+const ACFun = api.ACFun;
+const OpMode = api.OpMode;
 
 var Service, Characteristic;
 
@@ -14,8 +16,10 @@ function AirConditioner(log, config) {
     this.name = config["name"];
     this.api = new AirConditionerApi(config["ip_address"], config["mac"], config["token"], log);
 
-    this._targetState = Characteristic.TargetHeaterCoolerState.COOL; // or HEAT or AUTO
-}
+    this.currentTemperature = null;
+    this.targetTemperature = null;
+    this.isOn = null;
+};
 
 AirConditioner.prototype = {
 
@@ -57,6 +61,16 @@ AirConditioner.prototype = {
             })
             .on('get', this.getTargetTemperature.bind(this))
             .on('set', this.setTargetTemperature.bind(this));
+
+        // this.acService
+        //     .getCharacteristic(Characteristic.HeatingThresholdTemperature)
+        //     .setProps({
+        //         minValue: 16,
+        //         maxValue: 30,
+        //         minStep: 1
+        //     })
+        //     .on('get', this.getTargetTemperature.bind(this))
+        //     .on('set', this.setTargetTemperature.bind(this));
 
         // TARGET STATE
         this.acService
@@ -123,19 +137,24 @@ AirConditioner.prototype = {
 
     // TARGET STATE
     getTargetState: function(callback) {
-        this.log('GET TARGET STATE: ' + this._targetState);
-        callback(null, this._targetState);
+        this.log('Getting target state...');
+
+        this.api.deviceState(ACFun.OpMode, function(err, opMode) {
+            this.log('Target state: ' + opMode);
+            callback(err, this.targetStateFromOpMode(opMode));
+        }.bind(this));
     },
 
     setTargetState: function(state, callback) {
-        this.log('SET TARGET STATE: ' + state);
-        this._targetState = state
-        callback(); // or HEAT or AUTO
+        this.log('Setting target state: ' + state);
+        
+        this.api.deviceControl(ACFun.OpMode, this.opModeFromTargetState(state), function(err) {
+            this.log('Target state set')
+            callback(err);
+        }.bind(this));
     },
 
-    // CURRENT STATE
     getCurrentState: function(callback) {
-        this.log('GET CURRENT STATE');
         callback(null, Characteristic.CurrentHeaterCoolerState.COOLING);
     },
 
@@ -144,20 +163,64 @@ AirConditioner.prototype = {
         this.log('Status change: ', status);
 
         var characteristic;
+        var mappedValue = null;
+
         switch(status.name) {
         case ACFun.Power:
             characteristic = Characteristic.Active;
+            mappedValue = status.value === "On";
+            this.isOn = mappedValue
             break;
         case ACFun.TempSet:
             characteristic = Characteristic.CoolingThresholdTemperature;
+            this.targetTemperature = status.value;
             break;
         case ACFun.TempNow:
             characteristic = Characteristic.CurrentTemperature;
+            this.currentTemperature = status.value
+            break;
+        case ACFun.OpMode:
+            characteristic = Characteristic.TargetHeaterCoolerState;
+            mappedValue = this.targetStateFromOpMode(status.value);
             break;
         }
 
         if(!!characteristic) {
-            this.acService.getCharacteristic(characteristic).updateValue(status.value)
+            this.acService.getCharacteristic(characteristic).updateValue(mappedValue !== null ? mappedValue : status.value);
+        }
+
+        // this.updateCurrentState();
+    },
+
+    updateCurrentState: function() {
+        var state;
+        if(!this.isOn) {
+            state = Characteristic.CurrentHeaterCoolerState.INACTIVE;
+        } else if(this.currentTemperature > this.targetTemperature) {
+            state = Characteristic.CurrentHeaterCoolerState.COOLING;
+        } else if(this.currentTemperature < this.targetTemperature) {
+            state = Characteristic.CurrentHeaterCoolerState.HEATING;
+        } else {
+            state = Characteristic.CurrentHeaterCoolerState.IDLE;
+        }
+
+        this.acService.getCharacteristic(Characteristic.CurrentHeaterCoolerState).updateValue(state)
+    },
+
+    opModeFromTargetState: function(targetState) {
+        switch(targetState) {
+            case Characteristic.TargetHeaterCoolerState.COOL: return OpMode.Cool;
+            case Characteristic.TargetHeaterCoolerState.HEAT: return OpMode.Heat;
+            case Characteristic.TargetHeaterCoolerState.AUTO: return OpMode.Auto;
+        }
+    },
+
+    targetStateFromOpMode: function(targetState) {
+        switch(targetState) {
+            case OpMode.Cool: return Characteristic.TargetHeaterCoolerState.COOL;
+            case OpMode.Heat: return Characteristic.TargetHeaterCoolerState.HEAT;
+            case OpMode.Auto: return Characteristic.TargetHeaterCoolerState.AUTO;
         }
     }
 };
+
