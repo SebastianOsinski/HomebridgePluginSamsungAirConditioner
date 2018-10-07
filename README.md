@@ -27,8 +27,8 @@ If you have Samsung AC which operates on port 8888, check this plugin instead: h
 - Better error handling
 - Reconnecting after socket connection ends
 
-## List of tested devices
+## Confirmed compatibility list (model numbers)
 - AR18HSFSAWKNEU
 
-## Attribution
+## Acknowledgment
 This project is heavily based on awesome work of CloCkWeRX - https://github.com/CloCkWeRX/node-samsung-airconditioner
