@@ -27,7 +27,7 @@ AirConditioner.prototype = {
         this.api
             .on('error', this.log)
             .on('end', function() { this.log("Connection ended") }.bind(this))
-            .on('authSuccess', function() { this.log("Connected") }.bind(this))
+            .on('authSuccess', function() { this.log("Authentication succeeded") }.bind(this))
             .on('statusChange', this.statusChanged.bind(this));
 
         this.api.connect();
