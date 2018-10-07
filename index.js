@@ -16,9 +16,7 @@ function AirConditioner(log, config) {
     this.name = config["name"];
     this.api = new AirConditionerApi(config["ip_address"], config["mac"], config["token"], log);
 
-    this.currentTemperature = null;
-    this.targetTemperature = null;
-    this.isOn = null;
+    this.targetState = null;
 };
 
 AirConditioner.prototype = {
@@ -62,15 +60,15 @@ AirConditioner.prototype = {
             .on('get', this.getTargetTemperature.bind(this))
             .on('set', this.setTargetTemperature.bind(this));
 
-        // this.acService
-        //     .getCharacteristic(Characteristic.HeatingThresholdTemperature)
-        //     .setProps({
-        //         minValue: 16,
-        //         maxValue: 30,
-        //         minStep: 1
-        //     })
-        //     .on('get', this.getTargetTemperature.bind(this))
-        //     .on('set', this.setTargetTemperature.bind(this));
+        this.acService
+            .getCharacteristic(Characteristic.HeatingThresholdTemperature)
+            .setProps({
+                minValue: 16,
+                maxValue: 30,
+                minStep: 1
+            })
+            // .on('get', this.getTargetTemperature.bind(this));
+            .on('set', this.setTargetTemperature.bind(this));
 
         // TARGET STATE
         this.acService
@@ -123,6 +121,8 @@ AirConditioner.prototype = {
         this.api.deviceState(ACFun.TempSet, function(err, targetTemperature) {
             this.log('Target temperature: ' + targetTemperature);
             callback(err, targetTemperature);
+
+            this.acService.getCharacteristic(Characteristic.HeatingThresholdTemperature).updateValue(targetTemperature);
         }.bind(this));
     },
 
@@ -140,8 +140,9 @@ AirConditioner.prototype = {
         this.log('Getting target state...');
 
         this.api.deviceState(ACFun.OpMode, function(err, opMode) {
-            this.log('Target state: ' + opMode);
-            callback(err, this.targetStateFromOpMode(opMode));
+            this.targetState = this.targetStateFromOpMode(opMode);
+            this.log('Target state: ' + this.targetState);
+            callback(err, this.targetState);
         }.bind(this));
     },
 
@@ -150,6 +151,7 @@ AirConditioner.prototype = {
         
         this.api.deviceControl(ACFun.OpMode, this.opModeFromTargetState(state), function(err) {
             this.log('Target state set')
+            this.targetState = state;
             callback(err);
         }.bind(this));
     },
@@ -169,10 +171,9 @@ AirConditioner.prototype = {
         case ACFun.Power:
             characteristic = Characteristic.Active;
             mappedValue = status.value === "On";
-            this.isOn = mappedValue
             break;
         case ACFun.TempSet:
-            characteristic = Characteristic.CoolingThresholdTemperature;
+            characteristic = (this.targetState === Characteristic.TargetHeaterCoolerState.HEAT) ? Characteristic.HeatingThresholdTemperature : Characteristic.CoolingThresholdTemperature;
             this.targetTemperature = status.value;
             break;
         case ACFun.TempNow:
@@ -182,6 +183,7 @@ AirConditioner.prototype = {
         case ACFun.OpMode:
             characteristic = Characteristic.TargetHeaterCoolerState;
             mappedValue = this.targetStateFromOpMode(status.value);
+            this.targetState = mappedValue;
             break;
         }
 
@@ -189,14 +191,12 @@ AirConditioner.prototype = {
             this.acService.getCharacteristic(characteristic).updateValue(mappedValue !== null ? mappedValue : status.value);
         }
 
-        // this.updateCurrentState();
+        this.updateCurrentState();
     },
 
     updateCurrentState: function() {
         var state;
-        if(!this.isOn) {
-            state = Characteristic.CurrentHeaterCoolerState.INACTIVE;
-        } else if(this.currentTemperature > this.targetTemperature) {
+        if(this.currentTemperature > this.targetTemperature) {
             state = Characteristic.CurrentHeaterCoolerState.COOLING;
         } else if(this.currentTemperature < this.targetTemperature) {
             state = Characteristic.CurrentHeaterCoolerState.HEATING;
