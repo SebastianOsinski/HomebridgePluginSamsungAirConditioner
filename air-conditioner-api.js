@@ -17,20 +17,25 @@ function AirConditionerApi(ipAddress, mac, token, log) {
 
 util.inherits(AirConditionerApi, events.EventEmitter);
 
-var ACFun = {
+const ACFun = {
     Power: 'AC_FUN_POWER',
     TempNow: 'AC_FUN_TEMPNOW',
     TempSet: 'AC_FUN_TEMPSET',
     OpMode: 'AC_FUN_OPMODE',
-    WindLevel: 'AC_FUN_WINDLEVEL'
+    Direction: 'AC_FUN_DIRECTION'
 }
 
-var OpMode = {
+const OpMode = {
     Cool: 'Cool',
     Heat: 'Heat',
     Wind: 'Wind',
     Dry: 'Dry',
     Auto: 'Auto'
+}
+
+const Direction = {
+    SwingUpDown: 'SwingUD',
+    Fixed: 'Fixed'
 }
 
 AirConditionerApi.prototype.connect = function () {
@@ -156,5 +161,6 @@ AirConditionerApi.prototype._readLine = function (line) {
 module.exports = {
     AirConditionerApi: AirConditionerApi,
     ACFun: ACFun,
-    OpMode: OpMode
+    OpMode: OpMode,
+    Direction: Direction
 }

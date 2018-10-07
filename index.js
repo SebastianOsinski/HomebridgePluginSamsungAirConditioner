@@ -2,6 +2,7 @@ const api = require('./air-conditioner-api');
 const AirConditionerApi = api.AirConditionerApi;
 const ACFun = api.ACFun;
 const OpMode = api.OpMode;
+const Direction = api.Direction;
 
 var Service, Characteristic;
 
@@ -80,7 +81,13 @@ AirConditioner.prototype = {
         // CURRENT STATE
         this.acService
             .getCharacteristic(Characteristic.CurrentHeaterCoolerState)
-            .on('get', this.getCurrentState.bind(this))
+            .on('get', this.getCurrentState.bind(this));
+
+        // SWING MODE
+        this.acService
+            .getCharacteristic(Characteristic.SwingMode)
+            .on('get', this.getSwingMode.bind(this))
+            .on('set', this.setSwingMode.bind(this));
 
         return [this.acService];
     },
@@ -162,6 +169,24 @@ AirConditioner.prototype = {
         callback(null, Characteristic.CurrentHeaterCoolerState.COOLING);
     },
 
+    getSwingMode: function(callback) {
+        this.log('Getting swing mode...');
+
+        this.api.deviceState(ACFun.Direction, function(err, direction) {
+            this.log('Swing mode: ' + direction);
+            callback(err, direction === Direction.SwingUpDown);
+        }.bind(this));
+    },
+
+    setSwingMode: function(enabled, callback) {
+        this.log('Setting swing mode...');
+
+        this.api.deviceControl(ACFun.Direction, enabled ? Direction.SwingUpDown : Direction.Fixed, function(err) {
+            this.log('Swing mode set');
+            callback(err);
+        }.bind(this));
+    },
+
     // STATUS CHANGE
     statusChanged: function(status) {
         this.log('Status change: ', status);
@@ -186,6 +211,10 @@ AirConditioner.prototype = {
             characteristic = Characteristic.TargetHeaterCoolerState;
             mappedValue = this.targetStateFromOpMode(status.value);
             this.targetState = mappedValue;
+            break;
+        case ACFun.Direction:
+            characteristic = Characteristic.SwingMode;
+            mappedValue = status.value === Direction.SwingUpDown;
             break;
         }
 
