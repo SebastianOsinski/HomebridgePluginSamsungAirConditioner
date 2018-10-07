@@ -8,9 +8,9 @@ const shortid = require('shortid');
 
 const port = 2878;
 
-function AirConditionerApi(ipAddress, mac, token, log) {
+function AirConditionerApi(ipAddress, duid, token, log) {
     this.ipAddress = ipAddress;
-    this.mac = mac;
+    this.duid = duid;
     this.token = token;
     this.log = log;
 }
@@ -72,7 +72,7 @@ AirConditionerApi.prototype.deviceControl = function (key, value, callback) {
     if (!!callback) this.controlCallbacks[id] = callback;
 
     this._send(
-        '<Request Type="DeviceControl"><Control CommandID="' + id + '" DUID="' + this.mac + '"><Attr ID="' + key + '" Value="' + value + '" /></Control></Request>'
+        '<Request Type="DeviceControl"><Control CommandID="' + id + '" DUID="' + this.duid + '"><Attr ID="' + key + '" Value="' + value + '" /></Control></Request>'
     );
 };
 
@@ -91,7 +91,7 @@ AirConditionerApi.prototype.deviceState = function (key, callback) {
     }
 
     this._send(
-        '<Request Type="DeviceState"><DUID="' + this.mac + '"><Attr ID="' + key + '" /></Request>'
+        '<Request Type="DeviceState"><DUID="' + this.duid + '"><Attr ID="' + key + '" /></Request>'
     );
 };
 

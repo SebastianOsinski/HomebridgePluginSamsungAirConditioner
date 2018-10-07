@@ -15,7 +15,8 @@ module.exports = function(homebridge) {
 function AirConditioner(log, config) {
     this.log = log;
     this.name = config["name"];
-    this.api = new AirConditionerApi(config["ip_address"], config["mac"], config["token"], log);
+    const duid = config["mac"].replace(/:/g, '').replace(/\-/g, '');
+    this.api = new AirConditionerApi(config["ip_address"], duid, config["token"], log);
 
     this.targetState = null;
 };
