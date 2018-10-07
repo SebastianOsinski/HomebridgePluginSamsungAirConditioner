@@ -26,6 +26,7 @@ AirConditioner.prototype = {
 
         this.api
             .on('error', this.log)
+            .on('end', function() { this.log("Connection ended") }.bind(this))
             .on('authSuccess', function() { this.log("Connected") }.bind(this))
             .on('statusChange', this.statusChanged.bind(this));
 
@@ -67,7 +68,7 @@ AirConditioner.prototype = {
                 maxValue: 30,
                 minStep: 1
             })
-            // .on('get', this.getTargetTemperature.bind(this));
+            .on('get', this.getTargetTemperature.bind(this))
             .on('set', this.setTargetTemperature.bind(this));
 
         // TARGET STATE
@@ -111,6 +112,8 @@ AirConditioner.prototype = {
         this.api.deviceState(ACFun.TempNow, function(err, currentTemperature) {
             this.log('Current temperature: ' + currentTemperature);
             callback(err, currentTemperature);
+
+            this.currentTemperature = currentTemperature;
         }.bind(this));
     },
 
@@ -121,8 +124,7 @@ AirConditioner.prototype = {
         this.api.deviceState(ACFun.TempSet, function(err, targetTemperature) {
             this.log('Target temperature: ' + targetTemperature);
             callback(err, targetTemperature);
-
-            this.acService.getCharacteristic(Characteristic.HeatingThresholdTemperature).updateValue(targetTemperature);
+            this.targetTemperature = targetTemperature;
         }.bind(this));
     },
 
@@ -204,7 +206,9 @@ AirConditioner.prototype = {
             state = Characteristic.CurrentHeaterCoolerState.IDLE;
         }
 
-        this.acService.getCharacteristic(Characteristic.CurrentHeaterCoolerState).updateValue(state)
+        this.acService.getCharacteristic(Characteristic.CurrentHeaterCoolerState).updateValue(state);
+        this.acService.getCharacteristic(Characteristic.HeatingThresholdTemperature).updateValue(this.targetTemperature);
+        this.acService.getCharacteristic(Characteristic.CoolingThresholdTemperature).updateValue(this.targetTemperature);
     },
 
     opModeFromTargetState: function(targetState) {

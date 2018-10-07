@@ -34,7 +34,8 @@ var OpMode = {
 }
 
 AirConditionerApi.prototype.connect = function() {
-    this.callbacks = {};
+    this.controlCallbacks = {};
+    this.stateCallbacks = {};
   
     var pfxPath = path.join(__dirname, 'ac14k_m.pfx')
 
@@ -50,7 +51,7 @@ AirConditionerApi.prototype.connect = function() {
   
       this.socket.setEncoding('utf8');
       carrier.carry(this.socket, function(line) {
-        var callback, id, status, callbackInput;
+        var callback, status;
   
         if (line === 'DRC-1.00') {
           return;
@@ -71,7 +72,6 @@ AirConditionerApi.prototype.connect = function() {
             status = {};
             status.name = matches[1];
             status.value = matches[2];
-            callbackInput = status.value;
   
             this.emit('statusChange', status);
           }
@@ -86,9 +86,12 @@ AirConditionerApi.prototype.connect = function() {
                 id = matches[1];
                 status.name = matches[1];
                 status.value = matches[2];
-                callbackInput = status.value;
+                
+                if (!this.stateCallbacks[id]) return;
+                callback = this.stateCallbacks[id].shift();
+                callback(null, status.value);
               }
-            });
+            }.bind(this));
   
             this.emit('statusChange', status);
         }
@@ -96,15 +99,14 @@ AirConditionerApi.prototype.connect = function() {
         if (line.match(/Response Type="DeviceControl" Status="Okay"/)) {
             if ((matches = line.match(/CommandID="(.*)"/))) {
                 id = matches[1];
-                callbackInput = null;
+
+                if (!this.controlCallbacks[id]) return;
+                callback = this.controlCallbacks[id];
+                delete(this.controlCallbacks[id]);
+        
+                callback(null);
             }
         }
-
-        if (!this.callbacks[id]) return;
-        callback = this.callbacks[id];
-        delete(this.callbacks[id]);
-
-        callback(null, callbackInput);
       }.bind(this));
     }.bind(this)).on('end', function() {
       this.emit('end');
@@ -123,7 +125,7 @@ AirConditionerApi.prototype.deviceControl = function(key, value, callback) {
   
     var id = shortid.generate()
 
-    if (!!callback) this.callbacks[id] = callback;
+    if (!!callback) this.controlCallbacks[id] = callback;
   
     this._send(
       '<Request Type="DeviceControl"><Control CommandID="' + id + '" DUID="' + this.mac + '"><Attr ID="' + key + '" Value="' + value + '" /></Control></Request>'
@@ -132,10 +134,15 @@ AirConditionerApi.prototype.deviceControl = function(key, value, callback) {
 
 AirConditionerApi.prototype.deviceState = function(key, callback) {
     if (!this.socket) throw new Error('not logged in');
-  
-    var id = key
 
-    if (!!callback) this.callbacks[id] = callback;
+    if (!!callback) {
+        if (!this.stateCallbacks[key]) {
+            this.stateCallbacks[key] = [];
+        }
+        this.stateCallbacks[key].push(callback);
+
+        console.log(this.stateCallbacks);
+    }
   
     this._send(
       '<Request Type="DeviceState"><DUID="' + this.mac + '"><Attr ID="' + key + '" /></Request>'
