@@ -1,18 +1,17 @@
 {
-	"bridge": {
-		"name": "Homebridge",
+    "bridge": {
+        "name": "Homebridge",
         "username": "CC:22:3D:E3:CE:30",
-		"port": 51826,
-		"pin": "031-45-154"
-	},
-
-	"accessories": [
-		{
-			"accessory": "Samsung AirConditioner",
+        "port": 51826,
+        "pin": "031-45-154"
+    },
+    "accessories": [
+        {
+            "accessory": "Samsung AirConditioner",
             "name": "Air Conditioner",
             "ip_address": "192.168.1.4",
             "mac": "AA:BB:CC:DD:EE:FF",
             "token": "abcdefgh"
-		}
-	]
+        }
+    ]
 }
