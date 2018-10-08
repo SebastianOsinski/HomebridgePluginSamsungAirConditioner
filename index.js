@@ -28,8 +28,8 @@ AirConditioner.prototype = {
 
         this.api
             .on('error', this.log)
-            .on('end', function() { this.log("Connection ended") }.bind(this))
-            .on('authSuccess', function() { this.log("Authentication succeeded") }.bind(this))
+            .on('end', this.connectionEnded.bind(this))
+            .on('authSuccess', function() { this.log("Authentication succeeded"); }.bind(this))
             .on('statusChange', this.statusChanged.bind(this));
 
         this.api.connect();
@@ -239,6 +239,13 @@ AirConditioner.prototype = {
         this.acService.getCharacteristic(Characteristic.CurrentHeaterCoolerState).updateValue(state);
         this.acService.getCharacteristic(Characteristic.HeatingThresholdTemperature).updateValue(this.targetTemperature);
         this.acService.getCharacteristic(Characteristic.CoolingThresholdTemperature).updateValue(this.targetTemperature);
+    },
+
+    connectionEnded: function() {
+        this.log('Connection ended');
+        this.log('Trying to reconnect in 5s...');
+
+        setTimeout(this.connect.bind(this), 5000);
     },
 
     opModeFromTargetState: function(targetState) {
