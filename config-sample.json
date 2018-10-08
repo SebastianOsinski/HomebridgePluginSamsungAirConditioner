@@ -7,7 +7,7 @@
     },
     "accessories": [
         {
-            "accessory": "Samsung AirConditioner",
+            "accessory": "Samsung Air Conditioner",
             "name": "Air Conditioner",
             "ip_address": "192.168.1.4",
             "mac": "AA:BB:CC:DD:EE:FF",

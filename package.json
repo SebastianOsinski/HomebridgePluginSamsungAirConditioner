@@ -20,6 +20,6 @@
     "shortid": "^2.2.13"
   },
   "bin": {
-    "samsung-ac-get-token": "./ac-get-token.js"
+    "homebridge-samsung-ac-get-token": "./ac-get-token.js"
   }
 }
