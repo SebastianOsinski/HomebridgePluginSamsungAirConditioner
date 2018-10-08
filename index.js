@@ -15,8 +15,8 @@ module.exports = function(homebridge) {
 function AirConditioner(log, config) {
     this.log = log;
     this.name = config["name"];
-    const duid = config["mac"].replace(/:/g, '').replace(/\-/g, '');
-    this.api = new AirConditionerApi(config["ip_address"], duid, config["token"], log);
+    this.duid = config["mac"].replace(/:/g, '').replace(/\-/g, '');
+    this.api = new AirConditionerApi(config["ip_address"], this.duid, config["token"], log);
 
     this.targetState = null;
 };
@@ -29,7 +29,7 @@ AirConditioner.prototype = {
         this.api
             .on('error', this.log)
             .on('end', this.connectionEnded.bind(this))
-            .on('authSuccess', function() { this.log("Authentication succeeded"); }.bind(this))
+            .on('authSuccess', this.authSucceeded.bind(this))
             .on('statusChange', this.statusChanged.bind(this));
 
         this.api.connect();
@@ -90,7 +90,13 @@ AirConditioner.prototype = {
             .on('get', this.getSwingMode.bind(this))
             .on('set', this.setSwingMode.bind(this));
 
-        return [this.acService];
+
+        const informationService = new Service.AccessoryInformation();
+        informationService
+            .setCharacteristic(Characteristic.Manufacturer, "Samsung")
+            .setCharacteristic(Characteristic.SerialNumber, this.duid);
+
+        return [this.acService, informationService];
     },
 
     // ACTIVE STATE
@@ -239,6 +245,10 @@ AirConditioner.prototype = {
         this.acService.getCharacteristic(Characteristic.CurrentHeaterCoolerState).updateValue(state);
         this.acService.getCharacteristic(Characteristic.HeatingThresholdTemperature).updateValue(this.targetTemperature);
         this.acService.getCharacteristic(Characteristic.CoolingThresholdTemperature).updateValue(this.targetTemperature);
+    },
+
+    authSucceeded: function() {
+        this.log("Authentication succeeded");
     },
 
     connectionEnded: function() {
