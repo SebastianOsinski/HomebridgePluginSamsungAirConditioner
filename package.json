@@ -1,20 +1,21 @@
 {
   "name": "homebridge-plugin-samsung-air-conditioner",
   "version": "1.0.0",
-  "description": "",
+  "description": "Homebridge plugin for controlling Samsung Air Conditioners working on port 2878",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "homebridge-plugin"
+    "homebridge-plugin", "samsung", "air", "conditioner", "ac", "2878"
   ],
+  "homepage": "https://github.com/SebastianOsinski/HomebridgePluginSamsungAirConditioner",
   "engines": {
     "node": ">=0.8",
     "homebridge": ">=0.1"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Sebastian Osiński",
+  "license": "MIT",
   "dependencies": {
     "carrier": "^0.3.0",
     "shortid": "^2.2.13"
