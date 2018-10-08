@@ -7,7 +7,7 @@ If you have Samsung AC which operates on port 8888, check this plugin instead: h
 1. Install [Homebridge](https://github.com/nfarina/homebridge).
 2. Install this plugin by running `npm install -g homebridge-plugin-samsung-air-conditioner`.
 3. Assign static IP address to your AC (check your router settings to do that).
-4. Run `samsung-ac-get-token <your ac's ip address>` in terminal and follow instructions.
+4. Run `homebridge-samsung-ac-get-token <your ac's ip address>` in terminal and follow instructions.
 5. Update your Homebridge `config.json`. Check `config-sample.json` for reference. Custom required parameters:
     
     - `ip_address` - IP address of air conditioner
