@@ -51,6 +51,8 @@ AirConditionerApi.prototype.connect = function () {
         rejectUnauthorized: false
     };
 
+    const self = this;
+
     this.socket = tls.connect(options, function () {
         this.log('Connected');
         this.socket.setEncoding('utf8');
@@ -58,8 +60,8 @@ AirConditionerApi.prototype.connect = function () {
         // All responses from AC are received here as lines
         carrier.carry(this.socket, this._readLine.bind(this));
     }.bind(this))
-    .on('end', function () { this.emit('end'); }.bind(this))
-    .on('error', function (err) { this.emit('error', err); }.bind(this));
+    .on('end', function () { self.emit('end'); })
+    .on('error', function (err) { self.emit('error', err); });
 };
 
 AirConditionerApi.prototype.deviceControl = function (key, value, callback) {

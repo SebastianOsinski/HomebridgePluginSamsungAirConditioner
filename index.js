@@ -255,7 +255,7 @@ AirConditioner.prototype = {
         this.log('Connection ended');
         this.log('Trying to reconnect in 5s...');
 
-        setTimeout(this.connect.bind(this), 5000);
+        setTimeout(this.api.connect.bind(this.api), 5000);
     },
 
     opModeFromTargetState: function(targetState) {
