@@ -24,7 +24,6 @@ function getToken(callback) {
         ciphers: 'HIGH:!DH:!aNULL'
     }
 
-    console.log('Cipher test');
     const socket = tls.connect(options, function () {
         socket.setEncoding('utf8');
 
