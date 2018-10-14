@@ -29,6 +29,7 @@ AirConditioner.prototype = {
         this.api
             .on('error', this.log)
             .on('end', this.connectionEnded.bind(this))
+            .on('close', this.connectionClosed.bind(this))
             .on('authSuccess', this.authSucceeded.bind(this))
             .on('statusChange', this.statusChanged.bind(this));
 
@@ -253,6 +254,13 @@ AirConditioner.prototype = {
 
     connectionEnded: function() {
         this.log('Connection ended');
+        this.log('Trying to reconnect in 5s...');
+
+        setTimeout(this.api.connect.bind(this.api), 5000);
+    },
+
+    connectionClosed: function(hadError) {
+        this.log('Connection closed' + (hadError ? ' because error occured' : ''));
         this.log('Trying to reconnect in 5s...');
 
         setTimeout(this.api.connect.bind(this.api), 5000);

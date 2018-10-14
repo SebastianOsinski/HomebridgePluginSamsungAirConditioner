@@ -56,13 +56,13 @@ AirConditionerApi.prototype.connect = function () {
 
     this.socket = tls.connect(options, function () {
         this.log('Connected');
-        this.socket.setEncoding('utf8');
-
+        
         // All responses from AC are received here as lines
         carrier.carry(this.socket, this._readLine.bind(this));
     }.bind(this))
     .on('end', function () { self.emit('end'); })
-    .on('error', function (err) { self.emit('error', err); });
+    .on('error', function (err) { self.emit('error', err); })
+    .on('close', function (hadError) { self.emit('close', hadError); });
 };
 
 AirConditionerApi.prototype.deviceControl = function (key, value, callback) {
