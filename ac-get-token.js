@@ -15,8 +15,19 @@ function getToken(callback) {
     var token;
 
     const pfxPath = path.join(__dirname, 'ac14k_m.pfx')
-    const socket = tls.connect({ pfx: fs.readFileSync(pfxPath), port: 2878, host: ipAddress, rejectUnauthorized: false }, function () {
+
+    const options = { 
+        pfx: fs.readFileSync(pfxPath), 
+        port: 2878, 
+        host: ipAddress, 
+        rejectUnauthorized: false,
+        ciphers: 'HIGH:!DH:!aNULL'
+    }
+
+    const socket = tls.connect(options, function () {
         socket.setEncoding('utf8');
+
+        console.log('CIPHER: ', socket.getCipher());
         carrier.carry(socket, function (line) {
             if (line == '<?xml version="1.0" encoding="utf-8" ?><Update Type="InvalidateAccount"/>') {
                 return socket.write('<Request Type="GetToken" />' + "\r\n");
@@ -37,7 +48,7 @@ function getToken(callback) {
             }
         });
     }).on('end', function () {
-        if (!token) callback(new Error('premature eof'));
+        if (!token) callback(new Error('Unexpected end of connection'));
     }).on('error', function (err) {
         if (!token) callback(err);
     });

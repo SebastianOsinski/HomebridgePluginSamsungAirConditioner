@@ -48,7 +48,8 @@ AirConditionerApi.prototype.connect = function () {
         pfx: fs.readFileSync(pfxPath),
         port: port,
         host: this.ipAddress,
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
+        ciphers: 'HIGH:!DH:!aNULL'
     };
 
     const self = this;
