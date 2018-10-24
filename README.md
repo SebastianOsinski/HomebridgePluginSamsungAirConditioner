@@ -31,6 +31,7 @@ If you have Samsung AC which operates on port 8888, check this plugin instead: h
 - Reconnecting after socket connection ends
 
 ## Confirmed compatibility list (model numbers)
+- AR12HSSFAWKNEU
 - AR18HSFSAWKNEU
 - AR24FSSSBWKN
 
