@@ -85,7 +85,6 @@ AirConditioner.prototype = {
             .on('get', this.getSwingMode.bind(this))
             .on('set', this.setSwingMode.bind(this));
 
-
         const informationService = new Service.AccessoryInformation();
         informationService
             .setCharacteristic(Characteristic.Manufacturer, "Samsung")
@@ -130,7 +129,7 @@ AirConditioner.prototype = {
     },
 
     getCurrentState: function (callback) {
-        callback(null, Characteristic.CurrentHeaterCoolerState.COOLING);
+        callback(null, this.currentHeaterCoolerState());
     },
 
     getSwingMode: function (callback) {
@@ -156,7 +155,7 @@ AirConditioner.prototype = {
         this.log('Setting target temperature: ' + temperature);
 
         this.api.deviceControl(ACFun.TempSet, temperature, function (err) {
-            this.log('Active set')
+            this.log('Target temperature set')
             callback(err);
         }.bind(this));
     },
@@ -166,7 +165,6 @@ AirConditioner.prototype = {
 
         this.api.deviceControl(ACFun.OpMode, this.opModeFromTargetState(state), function (err) {
             this.log('Target state set')
-            this.targetState = state;
             callback(err);
         }.bind(this));
     },
@@ -180,61 +178,78 @@ AirConditioner.prototype = {
         }.bind(this));
     },
 
-    // STATUS CHANGE
-    // statusChanged: function(status) {
-    //     this.log('Status change: ', status);
+    currentHeaterCoolerState: function() {
+        const currentTemperature = this.currentDeviceState[ACFun.TempNow];
+        const targetTemperature = this.currentDeviceState[ACFun.TempSet];
+        const opMode = this.currentDeviceState[ACFun.OpMode];
 
-    //     var characteristic;
-    //     var mappedValue = null;
+        var state;
 
-    //     switch(status.name) {
-    //     case ACFun.Power:
-    //         characteristic = Characteristic.Active;
-    //         mappedValue = status.value === "On";
-    //         break;
-    //     case ACFun.TempSet:
-    //         characteristic = (this.targetState === Characteristic.TargetHeaterCoolerState.HEAT) ? Characteristic.HeatingThresholdTemperature : Characteristic.CoolingThresholdTemperature;
-    //         this.targetTemperature = status.value;
-    //         break;
-    //     case ACFun.TempNow:
-    //         characteristic = Characteristic.CurrentTemperature;
-    //         this.currentTemperature = status.value
-    //         break;
-    //     case ACFun.OpMode:
-    //         characteristic = Characteristic.TargetHeaterCoolerState;
-    //         mappedValue = this.targetStateFromOpMode(status.value);
-    //         this.targetState = mappedValue;
-    //         break;
-    //     case ACFun.Direction:
-    //         characteristic = Characteristic.SwingMode;
-    //         mappedValue = status.value === Direction.SwingUpDown;
-    //         break;
-    //     }
+        if (opMode === OpMode.Cool) {
+            if(currentTemperature > targetTemperature) {
+                state = Characteristic.CurrentHeaterCoolerState.COOLING;
+            } else {
+                state = Characteristic.CurrentHeaterCoolerState.IDLE;
+            }
+        } else if (opMode === OpMode.Heat) {
+            if(currentTemperature < targetTemperature) {
+                state = Characteristic.CurrentHeaterCoolerState.HEATING;
+            } else {
+                state = Characteristic.CurrentHeaterCoolerState.IDLE;
+            }
+        }
 
-    //     if(!!characteristic) {
-    //         this.acService.getCharacteristic(characteristic).updateValue(mappedValue !== null ? mappedValue : status.value);
-    //     }
+        return state;
+    },
 
-    //     this.updateCurrentState();
-    // },
+    updateDerivedStates: function() {
+        const targetTemperature = this.currentDeviceState[ACFun.TempSet];
 
-    // updateCurrentState: function() {
-    //     var state;
-    //     if(this.currentTemperature > this.targetTemperature) {
-    //         state = Characteristic.CurrentHeaterCoolerState.COOLING;
-    //     } else if(this.currentTemperature < this.targetTemperature) {
-    //         state = Characteristic.CurrentHeaterCoolerState.HEATING;
-    //     } else {
-    //         state = Characteristic.CurrentHeaterCoolerState.IDLE;
-    //     }
-
-    //     this.acService.getCharacteristic(Characteristic.CurrentHeaterCoolerState).updateValue(state);
-    //     this.acService.getCharacteristic(Characteristic.HeatingThresholdTemperature).updateValue(this.targetTemperature);
-    //     this.acService.getCharacteristic(Characteristic.CoolingThresholdTemperature).updateValue(this.targetTemperature);
-    // },
+        this.acService.getCharacteristic(Characteristic.CurrentHeaterCoolerState).updateValue(this.currentHeaterCoolerState());
+        this.acService.getCharacteristic(Characteristic.HeatingThresholdTemperature).updateValue(targetTemperature);
+        this.acService.getCharacteristic(Characteristic.CoolingThresholdTemperature).updateValue(targetTemperature);
+    },
 
     updateState: function (stateUpdate) {
         this.currentDeviceState = Object.assign({}, this.currentDeviceState, stateUpdate);
+
+        Object.keys(stateUpdate).forEach(function(key) {
+            this.updateCharacteristic(key, stateUpdate[key]);
+        }.bind(this));
+
+        this.updateDerivedStates();
+    },
+
+    updateCharacteristic: function(name, value) {
+        var characteristic;
+        var mappedValue = null;
+
+        switch(name) {
+        case ACFun.Power:
+            characteristic = Characteristic.Active;
+            mappedValue = value === "On";
+            break;
+        case ACFun.TempSet:
+            // Updated sepearately;
+            break;
+        case ACFun.TempNow:
+            characteristic = Characteristic.CurrentTemperature;
+            this.currentTemperature = value
+            break;
+        case ACFun.OpMode:
+            characteristic = Characteristic.TargetHeaterCoolerState;
+            mappedValue = this.targetStateFromOpMode(value);
+            this.targetState = mappedValue;
+            break;
+        case ACFun.Direction:
+            characteristic = Characteristic.SwingMode;
+            mappedValue = value === Direction.SwingUpDown;
+            break;
+        }
+
+        if(!!characteristic) {
+            this.acService.getCharacteristic(characteristic).updateValue(mappedValue !== null ? mappedValue : value);
+        }
     },
 
     opModeFromTargetState: function (targetState) {
