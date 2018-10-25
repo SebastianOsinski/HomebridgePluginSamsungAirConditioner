@@ -13,9 +13,7 @@ function AirConditionerApi(ipAddress, duid, token, log) {
     this.duid = duid;
     this.token = token;
     this.log = log;
-}
-
-util.inherits(AirConditionerApi, events.EventEmitter);
+};
 
 const ACFun = {
     Power: 'AC_FUN_POWER',
@@ -23,7 +21,7 @@ const ACFun = {
     TempSet: 'AC_FUN_TEMPSET',
     OpMode: 'AC_FUN_OPMODE',
     Direction: 'AC_FUN_DIRECTION'
-}
+};
 
 const OpMode = {
     Cool: 'Cool',
@@ -31,124 +29,104 @@ const OpMode = {
     Wind: 'Wind',
     Dry: 'Dry',
     Auto: 'Auto'
-}
+};
 
 const Direction = {
     SwingUpDown: 'SwingUD',
     Fixed: 'Fixed'
-}
-
-AirConditionerApi.prototype.connect = function () {
-    this.controlCallbacks = {};
-    this.stateCallbacks = {};
-
-    const pfxPath = path.join(__dirname, 'ac14k_m.pfx')
-
-    const options = {
-        pfx: fs.readFileSync(pfxPath),
-        port: port,
-        host: this.ipAddress,
-        rejectUnauthorized: false,
-        ciphers: 'HIGH:!DH:!aNULL'
-    };
-
-    const self = this;
-
-    this.socket = tls.connect(options, function () {
-        this.log('Connected');
-        
-        // All responses from AC are received here as lines
-        carrier.carry(this.socket, this._readLine.bind(this));
-    }.bind(this))
-    .on('end', function () { self.emit('end'); })
-    .on('error', function (err) { self.emit('error', err); })
-    .on('close', function (hadError) { self.emit('close', hadError); });
 };
 
-AirConditionerApi.prototype.deviceControl = function (key, value, callback) {
-    if (!this.socket) throw new Error('not logged in');
+AirConditionerApi.prototype = {
+    connect: function () {
+        this.log('Connecting...');
 
-    // Create id for callback. It will be passed to request and returned by AC in response
-    // It allows us to match callbacks to responses received in `carrier.carry` callback above
-    const id = shortid.generate()
+        this.controlCallbacks = {};
+        this.stateCallbacks = {};
 
-    if (!!callback) this.controlCallbacks[id] = callback;
+        const pfxPath = path.join(__dirname, 'ac14k_m.pfx')
 
-    this._send(
-        '<Request Type="DeviceControl"><Control CommandID="' + id + '" DUID="' + this.duid + '"><Attr ID="' + key + '" Value="' + value + '" /></Control></Request>'
-    );
-};
+        const options = {
+            pfx: fs.readFileSync(pfxPath),
+            port: port,
+            host: this.ipAddress,
+            rejectUnauthorized: false,
+            ciphers: 'HIGH:!DH:!aNULL'
+        };
 
-AirConditionerApi.prototype.deviceState = function (key, callback) {
-    if (!this.socket) throw new Error('not logged in');
+        this.socket = tls.connect(options, function () {
+            this.log('Connected');
+            // All responses from AC are received here as lines
+            carrier.carry(this.socket, this._readLine.bind(this));
+        }.bind(this))
 
-    if (!!callback) {
-        // Requests for DeviceState do not support passing command ids. So we don't have ids to match callbacks to responses
-        // Using key as id is not sufficient, because there might be possibility to send two requests with same key and second callback
-        // will overwrite first one, making first callback not getting called at all - this causes issues in HomeKit. 
-        // To fix that, we store array of callbacks for given key and in `carrier.carry` we call the oldest one (first one in array) and then remove it.
-        if (!this.stateCallbacks[key]) {
-            this.stateCallbacks[key] = [];
-        }
-        this.stateCallbacks[key].push(callback);
-    }
+        this.socket
+            .on('end', this._connectionEnded.bind(this))
+            .on('close', this._connectionClosed.bind(this))
+            .on('error', this.log);
+    },
 
-    this._send(
-        '<Request Type="DeviceState"><DUID="' + this.duid + '"><Attr ID="' + key + '" /></Request>'
-    );
-};
+    deviceControl: function (key, value, callback) {
+        if (!this.socket) throw new Error('not logged in');
 
-AirConditionerApi.prototype._send = function (line) {
-    this.log('Write: ', line);
-    this.socket.write(line + "\r\n");
-};
+        // Create id for callback. It will be passed to request and returned by AC in response
+        // It allows us to match callbacks to responses received in `carrier.carry` callback above
+        const id = shortid.generate()
 
-AirConditionerApi.prototype._readLine = function (line) {
-    this.log('Read: ', line);
+        if (!!callback) this.controlCallbacks[id] = callback;
 
-    // Returned in the beginning of connection. We need to send auth request with token.
-    if (line === '<?xml version="1.0" encoding="utf-8" ?><Update Type="InvalidateAccount"/>') {
-        return this._send('<Request Type="AuthToken"><User Token="' + this.token + '"/></Request>');
-    }
+        this._send(
+            '<Request Type="DeviceControl"><Control CommandID="' + id + '" DUID="' + this.duid + '"><Attr ID="' + key + '" Value="' + value + '" /></Control></Request>'
+        );
+    },
 
-    // Auth success
-    if (line.match(/Response Type="AuthToken" Status="Okay"/)) {
-        this.emit('authSuccess');
-        return;
-    }
+    _send: function (line) {
+        this.log('Write: ', line);
+        this.socket.write(line + "\r\n");
+    },
 
-    // Status update received - AC sends them when some setting is changed via remote. 
-    if (line.match(/Update Type="Status"/)) {
-        if ((matches = line.match(/Attr ID="(.*)" Value="(.*)"/))) {
-            const status = {};
-            status.name = matches[1];
-            status.value = matches[2];
+    _readLine: function (line) {
+        if (line.match(/Update Type="InvalidateAccount"/)) { // Returned in the beginning of connection. We need to send auth request with token.
+            this._handleInvalidateAccount();
+        } else if (line.match(/Response Type="AuthToken" Status="Okay"/)) { // Auth success
+            this._handleAuthSuccessResponse();
+        } else if (line.match(/Update Type="Status"/)) { // Status update received - AC sends them when some setting is changed via remote. 
+            this._handleDeviceStatusUpdate(line);
+        } else if (line.match(/Response Type="DeviceState" Status="Okay"/)) { // Status response received - AC sends it after receiving request for status
+            this._handleDeviceStateResponse(line);
+        } else if (line.match(/Response Type="DeviceControl" Status="Okay"/)) { // Control confirmation received - AC sends it to confirm control success
+            this._handleDeviceControlResponse(line);
+        };
+    },
 
-            this.emit('statusChange', status);
-        }
-    }
+    _handleInvalidateAccount: function() {
+        this.log("Auth request received - Authenticating...");
 
-    // Response for device state call received.
-    if (line.match(/Response Type="DeviceState" Status="Okay"/)) {
+        this._send('<Request Type="AuthToken"><User Token="' + this.token + '"/></Request>');
+    },
+
+    _handleAuthSuccessResponse: function() {
+        this.log("Authentication succeeded");
+        this.log("Requesting full state summary...");
+
+        this._send('<Request Type="DeviceState" DUID="' + this.duid + '"></Request>');
+    },
+
+    _handleDeviceStateResponse: function (line) {
+        this.log("Full state summary received");
+
         const attributes = line.split("><");
-        const status = {};
+        const state = {};
         attributes.forEach(function (attr) {
             if ((matches = attr.match(/Attr ID="(.*)" Type=".*" Value="(.*)"/))) {
                 const id = matches[1];
-                status.name = matches[1];
-                status.value = matches[2];
-
-                if (!this.stateCallbacks[id]) return;
-                const callback = this.stateCallbacks[id].shift();
-                callback(null, status.value);
+                state[id] = matches[2];
             }
         }.bind(this));
 
-        this.emit('statusChange', status);
-    }
+        this.emit('stateUpdate', state);
+    },
 
-    // Response for device control received
-    if (line.match(/Response Type="DeviceControl" Status="Okay"/)) {
+    _handleDeviceControlResponse: function (line) {
         if ((matches = line.match(/CommandID="(.*)"/))) {
             id = matches[1];
 
@@ -158,8 +136,30 @@ AirConditionerApi.prototype._readLine = function (line) {
 
             callback(null);
         }
+    },
+
+    _handleDeviceStatusUpdate: function(line) {
+        if ((matches = line.match(/Attr ID="(.*)" Value="(.*)"/))) {
+            const state = {};
+            state[matches[1]] = matches[2];
+
+            this.emit('stateUpdate', state);
+        }
+    },
+
+    _connectionEnded: function () {
+        this.log('Connection ended');
+    },
+
+    _connectionClosed: function (hadError) {
+        this.log('Connection closed' + (hadError ? ' because error occured' : ''));
+        this.log('Trying to reconnect in 5s...');
+
+        setTimeout(this.api.connect.bind(this), 5000);
     }
 };
+
+util.inherits(AirConditionerApi, events.EventEmitter);
 
 module.exports = {
     AirConditionerApi: AirConditionerApi,

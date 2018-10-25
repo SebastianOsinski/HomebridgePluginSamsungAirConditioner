@@ -22,18 +22,11 @@ function AirConditioner(log, config) {
 };
 
 AirConditioner.prototype = {
-
     getServices: function() {
-        this.log('Connecting...');
+        this.api.connect();
 
         this.api
-            .on('error', this.log)
-            .on('end', this.connectionEnded.bind(this))
-            .on('close', this.connectionClosed.bind(this))
-            .on('authSuccess', this.authSucceeded.bind(this))
-            .on('statusChange', this.statusChanged.bind(this));
-
-        this.api.connect();
+            .on('stateUpdate', this.log);
 
         this.acService = new Service.HeaterCooler(this.name);
 
@@ -246,24 +239,6 @@ AirConditioner.prototype = {
         this.acService.getCharacteristic(Characteristic.CurrentHeaterCoolerState).updateValue(state);
         this.acService.getCharacteristic(Characteristic.HeatingThresholdTemperature).updateValue(this.targetTemperature);
         this.acService.getCharacteristic(Characteristic.CoolingThresholdTemperature).updateValue(this.targetTemperature);
-    },
-
-    authSucceeded: function() {
-        this.log("Authentication succeeded");
-    },
-
-    connectionEnded: function() {
-        this.log('Connection ended');
-        this.log('Trying to reconnect in 5s...');
-
-        setTimeout(this.api.connect.bind(this.api), 5000);
-    },
-
-    connectionClosed: function(hadError) {
-        this.log('Connection closed' + (hadError ? ' because error occured' : ''));
-        this.log('Trying to reconnect in 5s...');
-
-        setTimeout(this.api.connect.bind(this.api), 5000);
     },
 
     opModeFromTargetState: function(targetState) {
