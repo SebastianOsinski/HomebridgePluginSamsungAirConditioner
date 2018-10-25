@@ -20,7 +20,8 @@ const ACFun = {
     TempNow: 'AC_FUN_TEMPNOW',
     TempSet: 'AC_FUN_TEMPSET',
     OpMode: 'AC_FUN_OPMODE',
-    Direction: 'AC_FUN_DIRECTION'
+    Direction: 'AC_FUN_DIRECTION',
+    WindLevel: 'AC_FUN_WINDLEVEL'
 };
 
 const OpMode = {
@@ -34,6 +35,14 @@ const OpMode = {
 const Direction = {
     SwingUpDown: 'SwingUD',
     Fixed: 'Fixed'
+};
+
+const WindLevel = {
+    Auto: 'Auto',
+    Low: 'Low',
+    Mid: 'Mid',
+    High: 'High',
+    Turbo: 'Turbo'
 };
 
 AirConditionerApi.prototype = {
@@ -165,5 +174,6 @@ module.exports = {
     AirConditionerApi: AirConditionerApi,
     ACFun: ACFun,
     OpMode: OpMode,
-    Direction: Direction
+    Direction: Direction,
+    WindLevel: WindLevel
 }

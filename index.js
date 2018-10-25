@@ -3,6 +3,7 @@ const AirConditionerApi = api.AirConditionerApi;
 const ACFun = api.ACFun;
 const OpMode = api.OpMode;
 const Direction = api.Direction;
+const WindLevel = api.WindLevel;
 
 var Service, Characteristic;
 
@@ -84,6 +85,12 @@ AirConditioner.prototype = {
             .on('get', this.getSwingMode.bind(this))
             .on('set', this.setSwingMode.bind(this));
 
+        // ROTATION SPEED
+        this.acService
+            .getCharacteristic(Characteristic.RotationSpeed)
+            .on('get', this.getRotationSpeed.bind(this))
+            .on('set', this.setRotationSpeed.bind(this));
+            
         const informationService = new Service.AccessoryInformation();
         informationService
             .setCharacteristic(Characteristic.Manufacturer, "Samsung")
@@ -140,6 +147,15 @@ AirConditioner.prototype = {
         callback(null, isOscillating);
     },
 
+    getRotationSpeed: function(callback) {
+        this.log('Getting rotation speed...');
+
+        const windLevel = this.currentDeviceState[ACFun.WindLevel];
+        const rotationSpeed = rotationSpeedFromWindLevel(windLevel);
+
+        callback(null, rotationSpeed);
+    },
+
     // SETTERS
     setActive: function (isActive, callback) {
         this.log('Setting active: ' + isActive);
@@ -177,6 +193,15 @@ AirConditioner.prototype = {
         }.bind(this));
     },
 
+    setRotationSpeed: function(speed, callback) {
+        this.log('Setting rotation speed');
+
+        this.api.deviceControl(ACFun.WindLevel, windLevelFromRotationSpeed(speed), function(err) {
+            this.log('Rotation speed');
+            callback(err);
+        }.bind(this));
+    },
+
     currentHeaterCoolerState: function() {
         const currentTemperature = this.currentDeviceState[ACFun.TempNow];
         const targetTemperature = this.currentDeviceState[ACFun.TempSet];
@@ -203,6 +228,8 @@ AirConditioner.prototype = {
 
     updateState: function (stateUpdate) {
         this.currentDeviceState = Object.assign({}, this.currentDeviceState, stateUpdate);
+
+        this.log(stateUpdate);
 
         Object.keys(stateUpdate).forEach(function(key) {
             this.updateCharacteristic(key, stateUpdate[key]);
@@ -231,6 +258,9 @@ AirConditioner.prototype = {
             characteristic = Characteristic.SwingMode;
             mappedValue = value === Direction.SwingUpDown;
             break;
+        case ACFun.WindLevel:
+            characteristic = Characteristic.RotationSpeed;
+            mappedValue = rotationSpeedFromWindLevel(value);
         }
 
         if(!!characteristic) {
@@ -262,3 +292,27 @@ targetStateFromOpMode = function (targetState) {
         case OpMode.Auto: return Characteristic.TargetHeaterCoolerState.AUTO;
     }
 };
+
+rotationSpeedFromWindLevel = function (windLevel) {
+    switch (windLevel) {
+        case WindLevel.Auto: return 0;
+        case WindLevel.Low: return 25;
+        case WindLevel.Mid: return 50;
+        case WindLevel.High: return 75;
+        case WindLevel.Turbo: return 100;
+    }
+};
+
+windLevelFromRotationSpeed = function (rotationSpeed) {
+    if (rotationSpeed == 0) {
+        return WindLevel.Auto;
+    } else if (rotationSpeed <= 25) {
+        return WindLevel.Low;
+    } else if (rotationSpeed <= 50) {
+        return WindLevel.Mid;
+    } else if (rotationSpeed <= 75) {
+        return WindLevel.High;
+    } else {
+        return WindLevel.Turbo;
+    }
+}
