@@ -23,6 +23,7 @@
   "license": "MIT",
   "dependencies": {
     "carrier": "^0.3.0",
+    "net-keepalive": "^1.2.1",
     "shortid": "^2.2.13"
   },
   "bin": {
