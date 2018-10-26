@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-
-const AirConditionerApi = require('./air-conditioner-api').AirConditionerApi;
 const tls = require('tls');
 const carrier = require('carrier');
 const fs = require('fs');
@@ -14,7 +12,7 @@ console.log('IP: ', ipAddress);
 function getToken(callback) {
     var token;
 
-    const pfxPath = path.join(__dirname, 'ac14k_m.pfx')
+    const pfxPath = path.join(__dirname, '../res/ac14k_m.pfx')
 
     const options = { 
         pfx: fs.readFileSync(pfxPath), 
