@@ -1,6 +1,6 @@
 {
   "name": "homebridge-plugin-samsung-air-conditioner",
-  "version": "1.0.3",
+  "version": "2.0.0",
   "description": "Homebridge plugin for controlling Samsung Air Conditioners working on port 2878",
   "main": "index.js",
   "scripts": {
@@ -23,9 +23,10 @@
   "license": "MIT",
   "dependencies": {
     "carrier": "^0.3.0",
+    "net-keepalive": "^1.2.1",
     "shortid": "^2.2.13"
   },
   "bin": {
-    "homebridge-samsung-ac-get-token": "./ac-get-token.js"
+    "homebridge-samsung-ac-get-token": "bin/ac-get-token.js"
   }
 }

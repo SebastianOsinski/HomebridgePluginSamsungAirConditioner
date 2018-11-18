@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-
-const AirConditionerApi = require('./air-conditioner-api').AirConditionerApi;
 const tls = require('tls');
 const carrier = require('carrier');
 const fs = require('fs');
@@ -14,7 +12,7 @@ console.log('IP: ', ipAddress);
 function getToken(callback) {
     var token;
 
-    const pfxPath = path.join(__dirname, 'ac14k_m.pfx')
+    const pfxPath = path.join(__dirname, '../res/ac14k_m.pfx')
 
     const options = { 
         pfx: fs.readFileSync(pfxPath), 
@@ -25,19 +23,16 @@ function getToken(callback) {
     }
 
     const socket = tls.connect(options, function () {
-        socket.setEncoding('utf8');
-
-        console.log('CIPHER: ', socket.getCipher());
         carrier.carry(socket, function (line) {
-            if (line == '<?xml version="1.0" encoding="utf-8" ?><Update Type="InvalidateAccount"/>') {
+            if (line.match(/Update Type="InvalidateAccount"/)) {
                 return socket.write('<Request Type="GetToken" />' + "\r\n");
             }
 
-            if (line == '<?xml version="1.0" encoding="utf-8" ?><Response Type="GetToken" Status="Ready"/>') {
+            if (line.match(/Response Type="GetToken" Status="Ready"/)) {
                 console.log('Power on the device within the next 30 seconds');
             }
 
-            if (line == '<?xml version="1.0" encoding="utf-8" ?><Response Status="Fail" Type="Authenticate" ErrorCode="301" />') {
+            if (line.match(/Response Status="Fail" Type="Authenticate" ErrorCode="301"/)) {
                 return callback(new Error('Failed authentication'));
             }
 
@@ -55,12 +50,11 @@ function getToken(callback) {
 }
 
 getToken(function(error, token) {
-    if (!!error) {
-        console.log(error);
-    }
     if (!!token) {
-        console.log('Device token: ', token);
+        console.log('Device token:', token);
+    } else if (!!error) {
+        console.log('Error occured:', error.message);
     }
 
     process.exit();
-})
+});
