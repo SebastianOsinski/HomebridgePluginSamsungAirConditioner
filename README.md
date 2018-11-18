@@ -34,9 +34,6 @@ If you have Samsung AC which operates on port 8888, check this plugin instead: h
 - Getting and setting wind level
 - Reacting to changes made by using AC's remote
 
-## TODO
-- Better error handling
-
 ## Confirmed compatibility list (model numbers)
 - AR12HSSFAWKNEU
 - AR18HSFSAWKNEU
