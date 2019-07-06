@@ -39,6 +39,7 @@ If you have Samsung AC which operates on port 8888, check this plugin instead: h
 - AR18HSFSAWKNEU
 - AR24FSSSBWKN
 - AR12FSSEDWUNEU
+- AR09HSSDBWKN
 
 If your device's number is not on the list but you have tested it and it works, please make a PR with your device's number.
 
