@@ -76,5 +76,8 @@ typings/
 # Serverless directories
 .serverless
 
+.DS_Store
+
+.devcontainer/homebridge/
 
 # End of https://www.gitignore.io/api/node

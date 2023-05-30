@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 const tls = require('tls');
 const carrier = require('carrier');
 const fs = require('fs');
@@ -12,14 +13,15 @@ console.log('IP: ', ipAddress);
 function getToken(callback) {
     var token;
 
-    const pfxPath = path.join(__dirname, '../res/ac14k_m.pfx')
+    const pfxPath = path.join(__dirname, '../res/cert.pfx')
 
     const options = { 
         pfx: fs.readFileSync(pfxPath), 
         port: 2878, 
         host: ipAddress, 
         rejectUnauthorized: false,
-        ciphers: 'HIGH:!DH:!aNULL'
+        secureProtocol: 'TLSv1_method',
+        ciphers: 'DEFAULT:@SECLEVEL=0'
     }
 
     const socket = tls.connect(options, function () {

@@ -22,7 +22,7 @@ If you have Samsung AC which operates on port 8888, check this plugin instead: h
         - `keep_alive` - dictionary with keep alive settings:
             - `enabled` - `true`/`false` (default `true`). If `true` then enables keep alive on underlying socket
             - `initial_delay` - milliseconds as integer (default `10000`). Time which needs to pass after last write to socket before sending first keep alive packet
-            - `interval` - milliseconds as integer (default `10000`). Time between keep alive packes
+            - `interval` - milliseconds as integer (default `10000`). Time between keep alive packets
             - `probes` - integer (default `10`). Number of keep alive packets to fails before treating connection as closed
 
 ## Features
