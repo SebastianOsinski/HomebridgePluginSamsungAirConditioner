@@ -2,27 +2,15 @@
 
 const tls = require('tls');
 const carrier = require('carrier');
-const fs = require('fs');
-const path = require('path');
+const connectionHelper = require('../lib/connection-helper');
 
 const [, , ...args] = process.argv;
 const ipAddress = args[0];
-
-console.log('IP: ', ipAddress);
+const skipCertificate = args[1] == "--skipCertificate";
+const options = connectionHelper.createConnectionOptions(ipAddress, skipCertificate, console.log);
 
 function getToken(callback) {
     var token;
-
-    const pfxPath = path.join(__dirname, '../res/cert.pfx')
-
-    const options = { 
-        pfx: fs.readFileSync(pfxPath), 
-        port: 2878, 
-        host: ipAddress, 
-        rejectUnauthorized: false,
-        secureProtocol: 'TLSv1_method',
-        ciphers: 'DEFAULT:@SECLEVEL=0'
-    }
 
     const socket = tls.connect(options, function () {
         carrier.carry(socket, function (line) {
