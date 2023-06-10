@@ -9,7 +9,7 @@ If you have Samsung AC which operates on port 8888, check this plugin instead: h
 1. Install [Homebridge](https://github.com/nfarina/homebridge).
 2. Install this plugin by running `npm install -g homebridge-plugin-samsung-air-conditioner`.
 3. Assign static IP address to your AC (check your router settings to do that).
-4. Run `homebridge-samsung-ac-get-token <your ac's ip address>` in terminal and follow instructions.
+4. Run `homebridge-samsung-ac-get-token <your ac's ip address>` in terminal and follow instructions. If you get any SSL/certificate errors. Try `homebridge-samsung-ac-get-token <your ac's ip address> --skipCertificate`.
 5. Update your Homebridge `config.json`. Check `config-sample.json` for reference. 
     - Required parameters:
         - `accessory` - always "Samsung Air Conditioner"
@@ -18,6 +18,7 @@ If you have Samsung AC which operates on port 8888, check this plugin instead: h
         - `mac` - MAC address of air conditioner in format `AA:BB:CC:DD:EE:FF` or `AA-BB-CC-DD-EE-FF`
         - `token` - token returned by `homebridge-samsung-ac-get-token <your ac's ip address>`
     - Optional parameters:
+        - `skip_certificate` - `true`/`false` (default `false`). If `true` then skips passing certificate to underlying connection which might mitigate SSL errors on some AC units. Try it if you get any SSL/certificate errors.
         - `log_socket_activity` - `true`/`false` (default `false`). If `true` then logs additional raw data to console
         - `keep_alive` - dictionary with keep alive settings:
             - `enabled` - `true`/`false` (default `true`). If `true` then enables keep alive on underlying socket
@@ -41,6 +42,8 @@ If you have Samsung AC which operates on port 8888, check this plugin instead: h
 - AR24FSSSBWKN
 - AR12FSSEDWUNEU
 - AR09HSSDBWKN
+- AR09HSSFRWKNER
+- MLM-H02
 
 If your device's number is not on the list but you have tested it and it works, please make a PR with your device's number.
 
