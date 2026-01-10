@@ -36,6 +36,8 @@ If you have Samsung AC which operates on port 8888, check this plugin instead: h
 - Reacting to changes made by using AC's remote
 
 ## Confirmed compatibility list (model numbers)
+- AQV09TWSNXSA
+- AQV12TWSNXSA
 - AR12HSSFAWKNEU
 - AR18HSFSAWKNEU
 - AR12HSFSAWKN
